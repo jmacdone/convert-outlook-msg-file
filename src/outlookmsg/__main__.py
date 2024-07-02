@@ -23,22 +23,27 @@ logger = logging.getLogger(__name__)
 
 # COMMAND-LINE ENTRY POINT
 
-def main():
-  logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s:%(funcName)s:%(lineno)s - %(levelname)s - %(message)s')
-  # If no command-line arguments are given, convert the .msg
-  # file on STDIN to .eml format on STDOUT.
-  if len(sys.argv) <= 1:
-    print(load(sys.stdin), file=sys.stdout)
 
-  # Otherwise, for each file mentioned on the command-line,
-  # convert it and save it to a file with ".eml" appended
-  # to the name.
-  else:
-    for fn in sys.argv[1:]:
-      print(fn + "...")
-      msg = load(fn)
-      with open(fn + ".eml", "wb") as f:
-        f.write(msg.as_bytes())
+def main():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(name)s:%(funcName)s:%(lineno)s - %(levelname)s - %(message)s",
+    )
+    # If no command-line arguments are given, convert the .msg
+    # file on STDIN to .eml format on STDOUT.
+    if len(sys.argv) <= 1:
+        print(load(sys.stdin), file=sys.stdout)
+
+    # Otherwise, for each file mentioned on the command-line,
+    # convert it and save it to a file with ".eml" appended
+    # to the name.
+    else:
+        for fn in sys.argv[1:]:
+            print(fn + "...")
+            msg = load(fn)
+            with open(fn + ".eml", "wb") as f:
+                f.write(msg.as_bytes())
+
 
 if __name__ == "__main__":
-  main()
+    main()
