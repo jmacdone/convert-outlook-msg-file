@@ -931,8 +931,7 @@ code_pages = {
 
 # COMMAND-LINE ENTRY POINT
 
-
-if __name__ == "__main__":
+def main():
   # If no command-line arguments are given, convert the .msg
   # file on STDIN to .eml format on STDOUT.
   if len(sys.argv) <= 1:
@@ -947,3 +946,6 @@ if __name__ == "__main__":
       msg = load(fn)
       with open(fn + ".eml", "wb") as f:
         f.write(msg.as_bytes())
+
+if __name__ == "__main__":
+  main()
