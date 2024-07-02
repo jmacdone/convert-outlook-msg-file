@@ -4,8 +4,10 @@ import email.parser
 from email.utils import formataddr, formatdate
 import logging
 import re
+import uuid
 
 import compoundfiles
+import compressed_rtf
 import html2text
 from rtfparse.parser import Rtf_Parser
 from rtfparse.renderers.html_decapsulator import HTML_Decapsulator
@@ -46,7 +48,7 @@ def set_msg_headers_from_metadata(msg, props):
         "To": "DISPLAY_TO",
         "CC": "DISPLAY_CC",
         "BCC": "DISPLAY_BCC",
-        "Subject": "Subject"
+        "Subject": "Subject",
     }
     for header_name, property_name in header_to_property.items():
         try:
@@ -57,11 +59,12 @@ def set_msg_headers_from_metadata(msg, props):
             continue
         msg[header_name] = value
 
+
 def set_msg_headers_from_transport(msg, props):
     """Add the raw headers, if known."""
     # Get the string holding all of the headers.
     try:
-       headers = props["TRANSPORT_MESSAGE_HEADERS"]
+        headers = props["TRANSPORT_MESSAGE_HEADERS"]
     except KeyError:
         return
 
@@ -75,19 +78,77 @@ def set_msg_headers_from_transport(msg, props):
     headers = re.sub(r"Content-Type: .*(\n\s.*)*\n", "", headers, flags=re.I)
 
     # Parse them.
-    headers = email.parser.HeaderParser(policy=email.policy.default).parsestr(
-        headers
-    )
+    headers = email.parser.HeaderParser(policy=email.policy.default).parsestr(headers)
 
     # Copy them into the message object.
     for header, value in headers.items():
         try:
             msg[header] = value
         except ValueError:
-            #trying to set an already-set single-value header
-            logger.debug("Forcing %s: %s to %s", header, msg[header], value)
-            del(msg[header])
+            # trying to set an already-set single-value header
+            logger.debug("Overwriting %s: %s --> %s", header, msg[header], value)
+            del msg[header]
             msg[header] = value
+
+
+def set_msg_body_by_body_property(msg, props) -> bool:
+    # Add a plain text body from the BODY field.
+    try:
+        body = props["BODY"]
+    except KeyError:
+        return False
+    if isinstance(body, str):
+        msg.set_content(body, cte="quoted-printable")
+    else:
+        msg.set_content(body, maintype="text", subtype="plain", cte="8bit")
+    return True
+
+
+def set_msg_body_by_html_property(msg, props) -> bool:
+    try:
+        body = props["HTML_BODY"]
+    except KeyError:
+        return False
+    msg.set_content(body, maintype="text", subtype="html")
+    return True
+
+
+def set_msg_body_by_rtf_compressed(msg, props):
+    """
+    Add a HTML body from the RTF_COMPRESSED field.
+    Decompress the value to Rich Text Format.
+    """
+
+    try:
+        rtf = props["RTF_COMPRESSED"]
+    except KeyError:
+        return False
+    rtf = compressed_rtf.decompress(rtf)
+
+    # Try rtfparse to de-encapsulate HTML stored in a rich
+    # text container.
+    try:
+        rtf_blob = io.BytesIO(rtf)
+        parsed = Rtf_Parser(rtf_file=rtf_blob).parse_file()
+        html_stream = io.StringIO()
+        HTML_Decapsulator().render(parsed, html_stream)
+        html_body = html_stream.getvalue()
+
+        # Try to convert that to plain/text if possible.
+        text_body = html2text.html2text(html_body)
+        msg.set_content(text_body, subtype="text", cte="quoted-printable")
+        msg.add_alternative(html_body, subtype="html", cte="quoted-printable")
+
+    # If that fails, just attach the RTF file to the message.
+    except Exception:
+        fn = "messagebody_{}.rtf".format(uuid.uuid4().hex)
+        msg.add_attachment(rtf, maintype="text", subtype="rtf", filename=fn)
+    return True
+
+
+def set_msg_body_placeholder(msg, _) -> bool:
+    msg.set_content("<no message body>", cte="quoted-printable")
+    return True
 
 
 def load_message_stream(entry, is_top_level, doc):
@@ -99,68 +160,17 @@ def load_message_stream(entry, is_top_level, doc):
     set_msg_headers_from_metadata(msg, props)
     set_msg_headers_from_transport(msg, props)
 
-    # Add a plain text body from the BODY field.
-    has_body = False
-    if "BODY" in props:
-        body = props["BODY"]
-        if isinstance(body, str):
-            msg.set_content(body, cte="quoted-printable")
-        else:
-            msg.set_content(body, maintype="text", subtype="plain", cte="8bit")
-        has_body = True
+    strategies = [
+        set_msg_body_by_rtf_compressed,
+        set_msg_body_by_html_property,
+        set_msg_body_by_body_property,
+        set_msg_body_placeholder,
+    ]
 
-    # Add a HTML body from the RTF_COMPRESSED field.
-    if "RTF_COMPRESSED" in props:
-        # Decompress the value to Rich Text Format.
-        import compressed_rtf
-
-        rtf = props["RTF_COMPRESSED"]
-        rtf = compressed_rtf.decompress(rtf)
-
-        # Try rtfparse to de-encapsulate HTML stored in a rich
-        # text container.
-        try:
-            rtf_blob = io.BytesIO(rtf)
-            parsed = Rtf_Parser(rtf_file=rtf_blob).parse_file()
-            html_stream = io.StringIO()
-            HTML_Decapsulator().render(parsed, html_stream)
-            html_body = html_stream.getvalue()
-
-            if not has_body:
-                # Try to convert that to plain/text if possible.
-                text_body = html2text.html2text(html_body)
-                msg.set_content(text_body, subtype="text", cte="quoted-printable")
-                has_body = True
-
-            if not has_body:
-                msg.set_content(html_body, subtype="html", cte="quoted-printable")
-                has_body = True
-            else:
-                msg.add_alternative(html_body, subtype="html", cte="quoted-printable")
-
-        # If that fails, just attach the RTF file to the message.
-        except Exception:
-            doc.rtf_attachments += 1
-            fn = "messagebody_{}.rtf".format(doc.rtf_attachments)
-
-            if not has_body:
-                msg.set_content(
-                    "<no plain text message body --- see attachment {}>".format(fn),
-                    cte="quoted-printable",
-                )
-                has_body = True
-
-            # Add RTF file as an attachment.
-            msg.add_attachment(rtf, maintype="text", subtype="rtf", filename=fn)
-
-    if not has_body:
-        msg.set_content("<no message body>", cte="quoted-printable")
-
-    # # Copy over string values of remaining properties as headers
-    # # so we don't lose any information.
-    # for k, v in props.items():
-    #   if k == 'RTF_COMPRESSED': continue # not interested, save output
-    #   msg[k] = str(v)
+    for strategy in strategies:
+        if strategy(msg, props):
+            logger.debug(f"MSG body set via {strategy.__name__}")
+            break
 
     # Add attachments.
     for stream in entry:
