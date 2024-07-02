@@ -22,73 +22,82 @@ def load(filename_or_stream):
         return load_message_stream(doc.root, True, doc)
 
 
+def set_msg_headers_from_metadata(msg, props):
+    # Construct common headers from metadata.
+
+    try:
+        msg["Date"] = formatdate(props["MESSAGE_DELIVERY_TIME"].timestamp())
+    except KeyError:
+        pass
+
+    try:
+        sender = props["SENDER_NAME"]
+        try:
+            representing = props["SENT_REPRESENTING_NAME"]
+            if sender != representing:
+                sender += f" ({representing})"
+        except KeyError:
+            pass
+        msg["From"] = formataddr((props["SENDER_NAME"], ""))
+    except KeyError:
+        pass
+
+    header_to_property = {
+        "To": "DISPLAY_TO",
+        "CC": "DISPLAY_CC",
+        "BCC": "DISPLAY_BCC",
+        "Subject": "Subject"
+    }
+    for header_name, property_name in header_to_property.items():
+        try:
+            value = props[property_name]
+        except KeyError:
+            continue
+        if not value:
+            continue
+        msg[header_name] = value
+
+def set_msg_headers_from_transport(msg, props):
+    """Add the raw headers, if known."""
+    # Get the string holding all of the headers.
+    try:
+       headers = props["TRANSPORT_MESSAGE_HEADERS"]
+    except KeyError:
+        return
+
+    if isinstance(headers, bytes):
+        headers = headers.decode("utf-8")
+
+    # Remove content-type header because the body we can get this
+    # way is just the plain-text portion of the email and whatever
+    # Content-Type header was in the original is not valid for
+    # reconstructing it this way.
+    headers = re.sub(r"Content-Type: .*(\n\s.*)*\n", "", headers, flags=re.I)
+
+    # Parse them.
+    headers = email.parser.HeaderParser(policy=email.policy.default).parsestr(
+        headers
+    )
+
+    # Copy them into the message object.
+    for header, value in headers.items():
+        try:
+            msg[header] = value
+        except ValueError:
+            #trying to set an already-set single-value header
+            logger.debug("Forcing %s: %s to %s", header, msg[header], value)
+            del(msg[header])
+            msg[header] = value
+
+
 def load_message_stream(entry, is_top_level, doc):
     # Load stream data.
     props = parse_properties(entry["__properties_version1.0"], is_top_level, entry, doc)
 
     # Construct the MIME message....
     msg = email.message.EmailMessage()
-
-    # Add the raw headers, if known.
-    if "TRANSPORT_MESSAGE_HEADERS" in props:
-        # Get the string holding all of the headers.
-        headers = props["TRANSPORT_MESSAGE_HEADERS"]
-        if isinstance(headers, bytes):
-            headers = headers.decode("utf-8")
-
-        # Remove content-type header because the body we can get this
-        # way is just the plain-text portion of the email and whatever
-        # Content-Type header was in the original is not valid for
-        # reconstructing it this way.
-        headers = re.sub(r"Content-Type: .*(\n\s.*)*\n", "", headers, flags=re.I)
-
-        # Parse them.
-        headers = email.parser.HeaderParser(policy=email.policy.default).parsestr(
-            headers
-        )
-
-        # Copy them into the message object.
-        for header, value in headers.items():
-            msg[header] = value
-
-    else:
-        # Construct common headers from metadata.
-
-        if "MESSAGE_DELIVERY_TIME" in props:
-            msg["Date"] = formatdate(props["MESSAGE_DELIVERY_TIME"].timestamp())
-            del props["MESSAGE_DELIVERY_TIME"]
-
-        if "SENDER_NAME" in props:
-            if "SENT_REPRESENTING_NAME" in props:
-                if props["SENT_REPRESENTING_NAME"]:
-                    if props["SENDER_NAME"] != props["SENT_REPRESENTING_NAME"]:
-                        props["SENDER_NAME"] += (
-                            " (" + props["SENT_REPRESENTING_NAME"] + ")"
-                        )
-                del props["SENT_REPRESENTING_NAME"]
-            if props["SENDER_NAME"]:
-                msg["From"] = formataddr((props["SENDER_NAME"], ""))
-            del props["SENDER_NAME"]
-
-        if "DISPLAY_TO" in props:
-            if props["DISPLAY_TO"]:
-                msg["To"] = props["DISPLAY_TO"]
-            del props["DISPLAY_TO"]
-
-        if "DISPLAY_CC" in props:
-            if props["DISPLAY_CC"]:
-                msg["CC"] = props["DISPLAY_CC"]
-            del props["DISPLAY_CC"]
-
-        if "DISPLAY_BCC" in props:
-            if props["DISPLAY_BCC"]:
-                msg["BCC"] = props["DISPLAY_BCC"]
-            del props["DISPLAY_BCC"]
-
-        if "SUBJECT" in props:
-            if props["SUBJECT"]:
-                msg["Subject"] = props["SUBJECT"]
-            del props["SUBJECT"]
+    set_msg_headers_from_metadata(msg, props)
+    set_msg_headers_from_transport(msg, props)
 
     # Add a plain text body from the BODY field.
     has_body = False
