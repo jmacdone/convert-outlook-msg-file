@@ -32,7 +32,7 @@ setuptools.setup(
     ],
     entry_points={
         'console_scripts': [
-            'outlookmsgfile = outlookmsg.outlookmsgfile:main'
+            'outlookmsgfile = outlookmsg.__main__:main'
         ]
     },
     package_dir= {"": "src"},
