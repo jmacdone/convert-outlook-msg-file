@@ -7,7 +7,7 @@
 # This script relies on the Python package compoundfiles
 # for reading the .msg container format.
 #
-# Referencecs:
+# References:
 #
 # https://msdn.microsoft.com/en-us/library/cc463912.aspx
 # https://msdn.microsoft.com/en-us/library/cc463900(v=exchg.80).aspx

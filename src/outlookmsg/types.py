@@ -265,7 +265,7 @@ property_tags = {
     0x0FFC: ("MINI_ICON", "BINARY"),
     0x0FFB: ("STORE_ENTRYID", "BINARY"),
     0x0FFA: ("STORE_RECORD_KEY", "BINARY"),
-    # Binary identifer for an individual object
+    # Binary identifier for an individual object
     0x0FF9: ("RECORD_KEY", "BINARY"),
     0x0FF8: ("MAPPING_SIGNATURE", "BINARY"),
     0x0FF7: ("ACCESS_LEVEL", "I4"),
@@ -313,7 +313,7 @@ property_tags = {
     0x3411: ("IPM_OUTBOX_SEARCH_KEY", "BINARY"),
     0x3412: ("IPM_WASTEBASKET_SEARCH_KEY", "BINARY"),
     0x3413: ("IPM_SENTMAIL_SEARCH_KEY", "BINARY"),
-    # Provder-defined message store type
+    # Provider-defined message store type
     0x3414: ("MDB_PROVIDER", "BINARY"),
     0x3415: ("RECEIVE_FOLDER_SETTINGS", "OBJECT"),
     0x35DF: ("VALID_FOLDER_MASK", "I4"),
@@ -397,7 +397,7 @@ property_tags = {
     0x3A1D: ("RADIO_TELEPHONE_NUMBER", "STRING"),
     0x3A1E: ("CAR_TELEPHONE_NUMBER", "STRING"),
     0x3A1F: ("OTHER_TELEPHONE_NUMBER", "STRING"),
-    0x3A20: ("TRANSMITABLE_DISPLAY_NAME", "STRING"),
+    0x3A20: ("TRANSMITTABLE_DISPLAY_NAME", "STRING"),
     0x3A21: ("PAGER_TELEPHONE_NUMBER", "STRING"),
     0x3A22: ("USER_CERTIFICATE", "BINARY"),
     0x3A23: ("PRIMARY_FAX_NUMBER", "STRING"),
