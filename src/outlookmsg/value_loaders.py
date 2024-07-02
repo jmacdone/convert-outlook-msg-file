@@ -1,4 +1,7 @@
 from functools import reduce
+import logging
+
+logger = logging.getLogger(__name__)
 
 FALLBACK_ENCODING = "cp1252"
 
@@ -94,7 +97,11 @@ class UNICODE(VariableLengthValueLoader):
     @staticmethod
     def load(value, **kwargs):
         # value is a bytestring encoded in UTF-16.
-        return value.decode("utf16")
+        decoded: str = value.decode("utf16")
+        # do c-style strings get encoded as utf16?
+        # is there an off-by-one error in the variable length math?
+        decoded =  decoded.removesuffix('\x00')
+        return decoded
 
 
 # TODO: The other variable-length tag types are "CLSID", "OBJECT".

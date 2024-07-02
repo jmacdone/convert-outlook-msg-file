@@ -44,6 +44,9 @@ def parse_properties(properties, is_top_level, container, doc):
         tag_name, _ = property_tags[property_tag]
         tag_type = property_types.get(property_type)
 
+        if tag_name == 'DISPLAY_BCC':
+            pass  #debug breakpoint
+
         # Fixed Length Properties.
         if isinstance(tag_type, FixedLengthValueLoader):
             # The value comes from the stream above.
