@@ -70,7 +70,7 @@ class STRING8(VariableLengthValueLoader):
     for encoding in encodings:
       try:
         return value.decode(encoding=encoding, errors='strict')
-      except:
+      except Exception:
         # Try the next one.
         pass
     return value.decode(encoding=FALLBACK_ENCODING, errors='replace')

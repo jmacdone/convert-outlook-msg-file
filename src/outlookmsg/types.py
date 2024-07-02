@@ -348,7 +348,7 @@ property_tags = {
   0x3617: ('ASSOC_CONTENT_COUNT', 'I4'),
   0x3700: ('ATTACHMENT_X400_PARAMETERS', 'BINARY'),
   0x3701: ('ATTACH_DATA_OBJ', 'OBJECT'),
-  0x3701: ('ATTACH_DATA_BIN', 'BINARY'),
+  0x3701: ('ATTACH_DATA_BIN', 'BINARY'),  # noqa: F601 - perl reference does have two names for this 0x3701 Tag
   0x3702: ('ATTACH_ENCODING', 'BINARY'),
   0x3703: ('ATTACH_EXTENSION', 'STRING'),
   0x3704: ('ATTACH_FILENAME', 'STRING'),

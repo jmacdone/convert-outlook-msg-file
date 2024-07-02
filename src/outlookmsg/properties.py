@@ -32,14 +32,14 @@ def parse_properties(properties, is_top_level, container, doc):
     # Read the entry.
     property_type  = stream[i+0:i+2]
     property_tag = stream[i+2:i+4]
-    flags = stream[i+4:i+8]
     value = stream[i+8:i+16]
     i += 16
 
     # Turn the byte strings into numbers and look up the property type.
     property_type = property_type[0] + (property_type[1]<<8)
     property_tag = property_tag[0] + (property_tag[1]<<8)
-    if property_tag not in property_tags: continue # should not happen
+    if property_tag not in property_tags:
+      continue # should not happen
     tag_name, _ = property_tags[property_tag]
     tag_type = property_types.get(property_type)
 
@@ -50,14 +50,12 @@ def parse_properties(properties, is_top_level, container, doc):
 
     # Variable Length Properties.
     elif isinstance(tag_type, VariableLengthValueLoader):
-      value_length = stream[i+8:i+12] # not used
-
       # Look up the stream in the document that holds the value.
       streamname = "__substg1.0_{0:0{1}X}{2:0{3}X}".format(property_tag,4, property_type,4)
       try:
         with doc.open(container[streamname]) as innerstream:
           value = innerstream.read()
-      except:
+      except Exception:
         # Stream isn't present!
         logger.error("stream missing {}".format(streamname))
         continue
@@ -67,7 +65,7 @@ def parse_properties(properties, is_top_level, container, doc):
       streamname = "__substg1.0_{0:0{1}X}{2:0{3}X}".format(property_tag,4, property_type,4)
       try:
         value = container[streamname]
-      except:
+      except Exception:
         # Stream isn't present!
         logger.error("stream missing {}".format(streamname))
         continue
@@ -83,7 +81,8 @@ def parse_properties(properties, is_top_level, container, doc):
   # properties.
   properties = { }
   for tag_name, (tag_type, value) in raw_properties.items():
-    if not isinstance(tag_type, FixedLengthValueLoader): continue
+    if not isinstance(tag_type, FixedLengthValueLoader):
+      continue
     try:
       properties[tag_name] = tag_type.load(value)
     except Exception as e:
@@ -105,7 +104,8 @@ def parse_properties(properties, is_top_level, container, doc):
 
   # Decode all of the remaining properties.
   for tag_name, (tag_type, value) in raw_properties.items():
-    if isinstance(tag_type, FixedLengthValueLoader): continue # already done, above
+    if isinstance(tag_type, FixedLengthValueLoader):
+      continue # already done, above
 
     # The codepage properties may be wrong. Fall back to
     # the other property if present.

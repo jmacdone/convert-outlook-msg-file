@@ -125,7 +125,7 @@ def load_message_stream(entry, is_top_level, doc):
         msg.add_alternative(html_body, subtype="html", cte='quoted-printable')
 
     # If that fails, just attach the RTF file to the message.
-    except:
+    except Exception:
       doc.rtf_attachments += 1
       fn = "messagebody_{}.rtf".format(doc.rtf_attachments)
 
